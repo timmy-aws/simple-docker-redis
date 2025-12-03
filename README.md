@@ -1,1 +1,3 @@
-Simple docker example using nodejs and redis
+## Simple docker example using nodejs and redis
+
+To access image

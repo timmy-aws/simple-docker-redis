@@ -1,0 +1,231 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ECS backend environment for Node.js + Redis app (Fargate + ElastiCache + ALB)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Set environment (dev or prod)
+
+  EcrImageUri:
+    Type: String
+    Description: Full URI of Docker image in ECR (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp:latest)
+
+Resources:
+  # -----------------------------
+  # VPC & Subnets
+  # -----------------------------
+  AppVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "myapp-${Environment}-vpc"
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AppVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "myapp-${Environment}-subnet1"
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AppVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "myapp-${Environment}-subnet2"
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and Redis access
+      VpcId: !Ref AppVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "myapp-${Environment}-sg"
+
+  # -----------------------------
+  # ECS Cluster
+  # -----------------------------
+  AppCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "myapp-${Environment}-cluster"
+
+  # -----------------------------
+  # ECS Task Execution Role
+  # -----------------------------
+  ECSExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      RoleName: !Sub "myapp-${Environment}-ecs-execution-role"
+
+  # -----------------------------
+  # Redis Subnet Group
+  # -----------------------------
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Subnet group for Redis
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      CacheSubnetGroupName: !Sub "myapp-${Environment}-redis-subnet"
+
+  # -----------------------------
+  # ElastiCache Redis Cluster
+  # -----------------------------
+  MyRedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      Engine: redis
+      CacheNodeType: cache.t3.micro
+      NumCacheNodes: 1
+      ClusterName: !Sub "myapp-${Environment}-redis"
+      VpcSecurityGroupIds:
+        - !Ref AppSecurityGroup
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+
+  # -----------------------------
+  # Application Load Balancer
+  # -----------------------------
+  AppLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "myapp-${Environment}-alb"
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref AppSecurityGroup
+      Scheme: internet-facing
+      Type: application
+      IpAddressType: ipv4
+
+  # -----------------------------
+  # Target Group
+  # -----------------------------
+  AppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "myapp-${Environment}-tg"
+      Port: 3000
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref AppVPC
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+
+  # -----------------------------
+  # Listener
+  # -----------------------------
+  AppListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref AppLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AppTargetGroup
+
+  # -----------------------------
+  # ECS Task Definition
+  # -----------------------------
+  AppTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "myapp-${Environment}-task"
+      Cpu: "512"
+      Memory: "1024"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: api
+          Image: !Ref EcrImageUri
+          PortMappings:
+            - ContainerPort: 3000
+          Environment:
+            - Name: NODE_ENV
+              Value: !Ref Environment
+            - Name: REDIS_HOST
+              Value: !GetAtt MyRedisCluster.RedisEndpoint.Address
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Sub "/ecs/myapp-${Environment}"
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: api
+
+  # -----------------------------
+  # ECS Service with ALB
+  # -----------------------------
+  AppService:
+    Type: AWS::ECS::Service
+    DependsOn: AppTaskDefinition
+    Properties:
+      Cluster: !Ref AppCluster
+      DesiredCount: !If
+        - IsProd
+        - 2
+        - 1
+      LaunchType: FARGATE
+      TaskDefinition: !Ref AppTaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
+          SecurityGroups:
+            - !Ref AppSecurityGroup
+      LoadBalancers:
+        - TargetGroupArn: !Ref AppTargetGroup
+          ContainerName: api
+          ContainerPort: 3000
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
