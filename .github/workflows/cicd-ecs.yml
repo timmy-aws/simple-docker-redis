@@ -57,10 +57,11 @@ jobs:
       - name: Set image name based on branch
         id: image
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+          if [[ "${GITHUB_REF}" == "main" ]]; then
             echo "IMAGE_URI=123456789012.dkr.ecr.${AWS_REGION}.amazonaws.com/myapp-prod:latest" >> $GITHUB_ENV
           else
             echo "IMAGE_URI=123456789012.dkr.ecr.${AWS_REGION}.amazonaws.com/myapp-dev:latest" >> $GITHUB_ENV
+          fi
 
       - name: Build Docker image
         run: |
