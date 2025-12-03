@@ -59,9 +59,9 @@ jobs:
         id: image
         run: |
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            echo "${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/demo-redis-prod:latest" >> $GITHUB_ENV
+            echo "IMAGE_URI=${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/demo-redis-prod:latest" >> $GITHUB_ENV
           else
-            echo "IMAGE_URI="${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/demo-redis-dev:latest" >> $GITHUB_ENV
+            echo "IMAGE_URI=${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/demo-redis-dev:latest" >> $GITHUB_ENV
           fi
 
       - name: Build Docker image
