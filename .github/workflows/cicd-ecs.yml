@@ -91,7 +91,7 @@ jobs:
 
       - name: Deploy CloudFormation Stack
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
             echo "Deploying to production stack"
             aws cloudformation deploy \
               --stack-name ${{ env.PROD_STACK_NAME }} \
@@ -109,3 +109,4 @@ jobs:
               --parameter-overrides \
                   Environment=dev \
                   EcrImageUri=$IMAGE_URI
+          fi
