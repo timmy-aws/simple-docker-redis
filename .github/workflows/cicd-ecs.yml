@@ -108,5 +108,5 @@ jobs:
               --capabilities CAPABILITY_NAMED_IAM \
               --parameter-overrides \
                   Environment=dev \
-                  EcrImageUri=$IMAGE_URI
+                  EcrImageUri=$IMAGE_URI 
           fi
