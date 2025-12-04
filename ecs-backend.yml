@@ -115,7 +115,7 @@ Resources:
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref AppVPC
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-public-routes'
@@ -143,7 +143,7 @@ Resources:
   PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref AppVPC
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-private-routes-1'
@@ -164,7 +164,7 @@ Resources:
   PrivateRouteTable2:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref AppVPC
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-private-routes-2'
