@@ -10,10 +10,10 @@ Parameters:
       - prod
     Description: Set environment (dev or prod)
 
-  EcrImageUri:
-    Type: String
-    Default: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/demo-redis-dev:latest"
-    Description: Full URI of Docker image in ECR (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp:latest)
+  # EcrImageUri:
+  #   Type: String
+  #   Default: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/demo-redis-dev:latest"
+  #   Description: Full URI of Docker image in ECR (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp:latest)
 
   PrivateSubnet1Cidr:
     Type: String
@@ -338,7 +338,7 @@ Resources:
       ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
       ContainerDefinitions:
         - Name: api
-          Image: !Ref EcrImageUri
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/demo-redis-dev:latest"
           PortMappings:
             - ContainerPort: 3000
           Environment:
