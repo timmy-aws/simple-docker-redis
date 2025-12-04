@@ -12,6 +12,7 @@ Parameters:
 
   EcrImageUri:
     Type: String
+    Default: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/demo-redis-dev:latest"
     Description: Full URI of Docker image in ECR (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp:latest)
 
   PrivateSubnet1Cidr:
