@@ -50,7 +50,7 @@ Resources:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref InternetGateway
-      VpcId: !Ref VPC
+      VpcId: !Ref AppVPC
 
   PublicSubnet1:
     Type: AWS::EC2::Subnet
@@ -77,7 +77,7 @@ Resources:
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref AppVPC
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !Ref PrivateSubnet1Cidr
       Tags:
@@ -87,7 +87,7 @@ Resources:
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref AppVPC
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Ref PrivateSubnet2Cidr
       Tags:
